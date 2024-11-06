@@ -15,6 +15,7 @@ export default defineConfig({
         'default-src': ["'self'"],
         'img-src': ["'self'", 'https://images.ctfassets.net'],
         'style-src': ["'self'", "https://fonts.googleapis.com"],
+        'script-src': ["'self'"],
         'font-src': ["'self'", "https://fonts.gstatic.com"],
       }
     })
