@@ -1,0 +1,7 @@
+---
+const { asset } = Astro.props;
+---
+<img
+    src={`https:${asset.fields.file.url}`}
+    alt={asset.fields.title}
+/>
