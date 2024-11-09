@@ -1,10 +1,39 @@
 ---
 import { documentToHtmlString } from "@contentful/rich-text-html-renderer";
 import Asset from "@lib/contentful/Asset.astro";
+import Video from "@lib/contentful/Video.astro";
 
 const { post } = Astro.props;
 ---
-<article class='shadow-lg scale-90 overflow-hidden flex items-center justify-center flex-col rounded-lg p-4 bg-emerald min-h-screen'>
+<article data-article class='shadow-lg article bg-white relative overflow-hidden flex items-center justify-center flex-col rounded-lg bg-emerald min-h-screen'>
     {post.fields.img && <figure><Asset asset={post.fields.img} /></figure>}
     {post.fields.text && <div class="text-xl" set:html={documentToHtmlString(post.fields.text)} />}
+    {post.fields.video && <Video video={post.fields.video} />}
 </article>
+<script>
+    const articles = document.querySelectorAll('[data-article]');
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+            const newRatio = entry.intersectionRatio >= 0.66 ? 1 : (0.8 + (entry.intersectionRatio * 0.1)).toFixed(2);
+            const target = entry.target as HTMLElement;
+            target.style.setProperty('--article-scale', `${newRatio}`);
+        });
+    }, {
+        root: null,
+        rootMargin: '0px',
+        threshold: [0, 0.25, 0.33, 0.5, 0.66, 0.75, 1]
+    });
+
+    articles.forEach((article) => {
+        observer.observe(article);
+    })
+</script>
+<style>
+    .article {
+        --article-scale: 0.8;
+
+        transition: transform 0.5s;
+        transform: scale(var(--article-scale));
+    }
+</style>

@@ -15,8 +15,9 @@ export default defineConfig({
         'default-src': ["'self'"],
         'img-src': ["'self'", 'https://images.ctfassets.net'],
         'style-src': ["'self'", "https://fonts.googleapis.com"],
-        'script-src': ["'self'"],
+        'script-src': ["'self'", "https://www.youtube.com/iframe_api"],
         'font-src': ["'self'", "https://fonts.gstatic.com"],
+        'frame-src': ['https://www.youtube.com'],
       }
     })
   ],

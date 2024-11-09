@@ -17,11 +17,11 @@ const posts = await contentfulClient.getEntries<BlogPost>({
 });
 ---
 
-<Layout title="Welcome to Feel Good.">
+<Layout title="Feel Good">
 	<main>
-		<header class="min-h-[80vh] flex items-center justify-center">
-			<h1 class="font-bold text-6xl">Feel Good</h1>
-			<span class="text-xl ml-3">An app to make you feel good.</span>
+		<header class="min-h-[80vh] flex items-center flex-col justify-center">
+			<h1 class="font-bold h1">Feel Good</h1>
+			<span class="text-xl ml-3 opacity-75">Une application pour vous faire sentir bien.</span>
 		</header>
 		<ul>
 			{posts.items.map((post) => (
@@ -32,3 +32,12 @@ const posts = await contentfulClient.getEntries<BlogPost>({
 		</ul>
 	</main>
 </Layout>
+<style>
+	body { 
+		background: -webkit-linear-gradient(to right, #E2E2E2, #FFF);  /* Chrome 10-25, Safari 5.1-6 */
+		background: linear-gradient(to right, #E2E2E2, #FFF); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+	}
+	.h1 {
+		font-size: calc(3rem + 2vw);
+	}
+</style>

@@ -2,7 +2,7 @@ name: Deploy Blog
 
 on:
   push:
-    branches: [ v0.0.1, main ]
+    branches: [ main ]
   workflow_dispatch:
   repository_dispatch:
     types:

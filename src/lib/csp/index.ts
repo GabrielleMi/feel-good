@@ -1,10 +1,9 @@
 import type { AstroIntegration, AstroIntegrationLogger } from "astro";
-import { readFileSync, writeFile, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parse as htmlParse } from "node-html-parser";
 import { createHash } from 'crypto';
-import { parse } from "@astrojs/compiler";
-import { walk } from "@astrojs/compiler/utils";
+import path from "node:path";
 
 type CSPConfigValue = (string|null|undefined|false)[]|null;
 
@@ -79,6 +78,13 @@ type CSPConfig = {
      */
     "frame-ancestors"?: CSPConfigValue
     /**
+     * The HTTP Content-Security-Policy (CSP) frame-src directive specifies valid sources
+     * for nested browsing contexts loading using elements such as <frame> and <iframe>.
+     * 
+     * @link https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/frame-src
+     */
+    "frame-src"?: CSPConfigValue
+    /**
      * The HTTP Content-Security-Policy img-src directive specifies valid sources of images and favicons.
      * 
      * @link https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/img-src
@@ -131,60 +137,89 @@ const createCSPHash = (s: string) => {
 	const hashBase64 = hash.digest('base64');
   
 	return `sha256-${hashBase64}`;
-  };
+};
 
 const addIntegrityToHtml = (html: string, logger: AstroIntegrationLogger, config?: CSPConfig): string => {
 	const hashes = {
 	  "style-src": [] as string[],
 	  "script-src": [] as string[]
 	};
-	const root = htmlParse(html);
-  
-
-	root.querySelectorAll('script').forEach((script) => {
-	  const src = script.getAttribute('src');
+  const root = htmlParse(html);
+  root.querySelectorAll('script').forEach((script) => {
+    const src = script.getAttribute('src');
     logger.info(`Adding CSP to script ${src || script.textContent}`);
 
-	  if(!src) {
+    if(!src) {
       const hash = createCSPHash(script.textContent);
-      hashes['script-src'] = [...hashes['script-src'], `'${hash}'`];
+      hashes['script-src'] = [ ...hashes['script-src'], `'${hash}'` ];
       script.setAttribute('integrity', hash);
-	  }
-	});
-  
-	root.querySelectorAll('link').forEach((link) => {
-	  const href = link.getAttribute('href');
+    }
+  });
+
+  root.querySelectorAll('link, style').forEach((link) => {
+    const href = link.getAttribute('href');
     logger.info(`Adding CSP to link ${href || link.textContent}`);
-	  
-	  if(!href) {
+    
+    if(!href) {
       const hash = createCSPHash(link.textContent);
       hashes['style-src'] = [...hashes['style-src'], `'${hash}'`];
       link.setAttribute('integrity', hash);
-	  }
-	});
-
-	  const head = root.querySelector('head');
-    logger.info(`Adding CSP to head`);
-
-    if(head) {
-        const fullCsp = {
-            ...config,
-            'script-src': [ ...(config?.['script-src'] || []), ...hashes['script-src'] ],
-            'style-src': [ ...(config?.['style-src'] || []), ...hashes['style-src'] ]
-        }
-        const contentCsp = buildCSP(fullCsp);
-        const metaContent = `<meta http-equiv="Content-Security-Policy" content="${contentCsp}">`;
-        logger.info(`Adding CSP meta tag ${metaContent}`);
-        head.appendChild(htmlParse(metaContent));
     }
-  
-	return root.toString();
-  };
+  });
+
+  const head = root.querySelector('head');
+  logger.info(`Adding meta tag to head`);
+
+  if(head) {
+    const fullCsp = {
+        ...config,
+        'script-src': [ ...(config?.['script-src'] || []), ...hashes['script-src'] ],
+        'style-src': [ ...(config?.['style-src'] || []), ...hashes['style-src'] ]
+    }
+    const contentCsp = buildCSP(fullCsp);
+    const metaContent = `<meta http-equiv="Content-Security-Policy" content="${contentCsp}">`;
+    
+    logger.info(`Adding CSP meta tag ${metaContent}`);
+    head.insertAdjacentHTML("afterbegin", metaContent);
+  } else {
+    logger.error(`Cannot find head tag in the HTML`);
+  }
+
+  return root.toString();
+};
 
 export function csp(config: { policies?: CSPConfig, output: 'meta'|'headers' }): AstroIntegration {
-    return {
+  return {
 		name: 'csp',
 		hooks: {
+      'astro:config:setup': ({ logger }) => {
+        const cspLogger = logger.fork('csp/config:setup');
+
+        if(!config.policies) {
+          cspLogger.warn('No CSP policies provided!');
+        }
+      },
+      'astro:server:setup': ({ logger, server }) => {
+        const cspLogger = logger.fork('csp/server:setup');
+        cspLogger.info('Setting up CSP server middleware');
+
+        server.middlewares.use(
+          async function middleware(req, res, next) {
+            try {
+              // read
+              // modify
+              // next
+            } catch (e) {
+              // Handle errors
+            }
+            next();
+          }
+        );
+      },
+      'astro:server:start': ({ logger }) => {
+        const cspLogger = logger.fork('csp/server:start');
+        cspLogger.info('Starting CSP server setup');
+      },
       'astro:build:done': ({ pages, dir, logger }) => {
 				const cspLogger = logger.fork('csp/build:done');
 
@@ -193,7 +228,11 @@ export function csp(config: { policies?: CSPConfig, output: 'meta'|'headers' }):
 			
 					try {
             cspLogger.info(`Adding CSP to ${filePath}`);
-					  const modifiedHtml = addIntegrityToHtml(readFileSync(filePath, { encoding: 'utf-8' }), cspLogger, config?.policies);
+					  const modifiedHtml = addIntegrityToHtml(
+              readFileSync(filePath, { encoding: 'utf-8' }),
+              cspLogger,
+              config?.policies
+            );
             writeFileSync(filePath, modifiedHtml, "utf-8");
 					} catch (e) {
 					  cspLogger.error(`Cannot read file ${filePath}: ${e}`);
